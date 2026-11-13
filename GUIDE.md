@@ -8,8 +8,8 @@
 4. In the init function, after the redirect is set up, call:
 
 ```cpp
-Tellurium::SettingsTab::Start();
-Tellurium::Fov::Start();
+if (Tellurium::Fov::Start()) // loads the saved values; false if this isn't 12.41
+    Tellurium::SettingsTab::Start();
 ```
 
 5. Build Release x64 and use the DLL like normal.
@@ -26,18 +26,19 @@ if (S.bCustomFOV)
     FOV = S.FOV;
 ```
 
-`SettingsVersion` goes up every time a value changes, so you can check it to see if something needs updating.
+`SettingsVersion` goes up every time a value changes, so you can check it to see if something needs updating. Saving to disk happens a moment after the last change, so dragging a slider doesn't write the file every step.
 
-Custom FOV works on its own once `Fov::Start()` is called. It scales the game's FOV instead of replacing it, so aiming down sights still zooms in. Changes apply straight away, no restart needed.
+Custom FOV, building sensitivity and editing sensitivity all work on their own once `Fov::Start()` is called. They apply straight away, no restart needed.
 
-The crosshair rows only store values. Drawing the crosshair is up to your own code (an ImGui overlay or similar).
+The crosshair rows only store values. Drawing the crosshair is up to your own code (an ImGui overlay or similar). `Fov::InMatch()` tells you whether you're in a match, and `SettingsTab::IsShatterTabShown()` whether the settings menu is open on the tab.
 
 ## Changing the tab
 
-- Name: search `Text(L"Refract", L"RefractTab_Name")` in `SettingsTab.cpp`
-- Icon: replace the bytes in `TabIcon.h` with your own PNG (128x128 works well). Any file to C array converter works
-- Rows: `BuildCollection` in `SettingsTab.cpp`. Use `AddBool` for on/off rows and `AddNumber` for everything else
+- Name: search `Text(L"Shatter", L"ShatterTab_Name")` in `SettingsTab.cpp`
+- Icon: replace the bytes in `TabIcon.h` with your own PNG (128x128 or 256x256 works well). Any file to C array converter works
+- Background colour: `PinkR`, `PinkG`, `PinkB` in `SettingsTab.cpp` (linear colour, not sRGB)
+- Rows: `BuildCollection` in `SettingsTab.cpp`. Use `AddBool` for on/off rows, `AddScalar` for sliders and `AddNumber` for arrow lists
 
 ## If something goes wrong
 
-Check `%LOCALAPPDATA%\Refract\client.log`. Every step logs a `[Settings]` line, and if something fails it says which row it was on.
+Check `%LOCALAPPDATA%\Shatter\client.log`. The first line says when the DLL was built, so you can tell the right one loaded. Every step logs a `[Settings]` line, and if something fails it says which row it was on.

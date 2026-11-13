@@ -11,6 +11,9 @@ namespace Tellurium
             bool bCustomFOV = false;
             float FOV = 90.f;
 
+            float BuildSensitivity = 100.f;
+            float EditSensitivity = 100.f;
+
             bool bCrosshair = false;
             int CrosshairStyle = (int)CrosshairStyle::Cross;
             float CrosshairSize = 8.f;

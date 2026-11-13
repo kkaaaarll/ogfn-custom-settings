@@ -1,13 +1,12 @@
 #pragma once
 #include <cstdint>
 
-namespace Engine1910
+namespace Engine1241
 {
-    constexpr uint32_t ExeTimeDateStamp = 0x61E9A85E;
-    constexpr int ProcessEventIndex = 0x4B;
+    constexpr uint32_t ExeTimeDateStamp = 0x5E9B1A8B;
+    constexpr int ProcessEventIndex = 0x42;
     constexpr uint32_t StructSuper = 0x40;
-    constexpr uint32_t ClassDefaultObject = 0x118;
-    constexpr int32_t RF_ClassDefaultObject = 0x10;
+    constexpr uint32_t ClassDefaultObject = 0x130;
 
     struct FName { int32_t Index; int32_t Number; };
     struct FStr { wchar_t* Data; int32_t Num; int32_t Max; };
@@ -30,7 +29,10 @@ namespace Engine1910
 
     int32_t ObjectCount();
     UObj* ObjectAt(int32_t Index);
+    int32_t SerialAt(int32_t Index);
+    void KeepAlive(UObj* Object);
     bool NameIs(FName Name, const wchar_t* Text);
+    void NameToString(FName Name, wchar_t* Out, size_t Count);
     bool IsA(UObj* Object, UObj* Class);
     UObj* FindClass(const wchar_t* Name);
     UObj* FindFunction(const wchar_t* Name, const wchar_t* OuterName);
@@ -41,6 +43,7 @@ namespace Engine1910
     FName MakeName(const wchar_t* Text);
     bool FindEngineObjects();
 
+    UObj* World();
     UObj* LocalPlayer();
 
     void Log(const char* Format, ...);

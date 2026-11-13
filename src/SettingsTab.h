@@ -5,6 +5,7 @@ namespace Tellurium
     namespace SettingsTab
     {
         void Start();
-        bool IsRefractTabShown();
+        bool IsShatterTabShown();
+        void GameThreadTick();
     }
 }
