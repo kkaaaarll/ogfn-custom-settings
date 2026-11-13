@@ -4,7 +4,7 @@ Adds your own tab to the Fortnite settings menu, with real settings rows that lo
 
 ![preview](preview.png)
 
-The example tab has a camera section (custom FOV) and a crosshair section (style, size, thickness, gap, outline, color). Values save to `%LOCALAPPDATA%\Refract\client.ini` and load again next launch.
+The example tab has a camera section (custom FOV), a building section (building and editing sensitivity, 10% to 500% of your normal look sensitivity, like current Fortnite's build and edit mode multipliers) and a crosshair section (style, size, thickness, gap, outline, color). Values save to `%LOCALAPPDATA%\Refract\client.ini` and load again next launch.
 
 ## 19.10 only
 
@@ -19,6 +19,7 @@ If you want it on another version you'll have to find every address and offset a
 - When the options menu opens it adds a new tab using one of the game's existing tab layouts, and points that tab at the Refract collection
 - The tab icon is a PNG built into the DLL (`TabIcon.h`), loaded as a texture at runtime
 - Custom FOV hooks `GetFOVAngle` on the local camera manager and scales the result, so ADS zoom still works
+- Building and editing sensitivity scale the player controller's `InputYawScale` / `InputPitchScale` while you hold the building or editing tool, and put the game's values back when you switch to anything else
 
 It's written as a drop-in for Tellurium. See [GUIDE.md](GUIDE.md) for setup.
 

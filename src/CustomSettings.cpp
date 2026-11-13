@@ -49,6 +49,8 @@ namespace Tellurium
             auto& S = Settings;
             S.bCustomFOV = ReadFloat(File, L"CustomFOV", 0) != 0;
             S.FOV = Clamp(ReadFloat(File, L"FOV", S.FOV), 60.f, 120.f);
+            S.BuildSensitivity = Clamp(ReadFloat(File, L"BuildSensitivity", S.BuildSensitivity), 10.f, 500.f);
+            S.EditSensitivity = Clamp(ReadFloat(File, L"EditSensitivity", S.EditSensitivity), 10.f, 500.f);
             S.bCrosshair = ReadFloat(File, L"Crosshair", 0) != 0;
             S.CrosshairStyle = (int)Clamp(ReadFloat(File, L"CrosshairStyle", 0), 0, 3);
             S.CrosshairSize = Clamp(ReadFloat(File, L"CrosshairSize", S.CrosshairSize), 2.f, 30.f);
@@ -69,6 +71,8 @@ namespace Tellurium
             auto& S = Settings;
             WriteFloat(File, L"CustomFOV", S.bCustomFOV);
             WriteFloat(File, L"FOV", S.FOV);
+            WriteFloat(File, L"BuildSensitivity", S.BuildSensitivity);
+            WriteFloat(File, L"EditSensitivity", S.EditSensitivity);
             WriteFloat(File, L"Crosshair", S.bCrosshair);
             WriteFloat(File, L"CrosshairStyle", (float)S.CrosshairStyle);
             WriteFloat(File, L"CrosshairSize", S.CrosshairSize);

@@ -22,6 +22,59 @@ namespace
     FPatchedVTable Patched[16]{};
     volatile long PatchedCount = 0;
 
+    constexpr uint32_t ControllerInputYawScale = 0x45C, ControllerInputPitchScale = 0x460;
+    constexpr uint32_t ControllerAcknowledgedPawn = 0x2B0;
+    constexpr uint32_t PawnCurrentWeapon = 0x5F8;
+    UObj* volatile BuildToolClass = nullptr;
+    UObj* volatile EditToolClass = nullptr;
+
+    struct
+    {
+        uint8_t* Controller = nullptr;
+        float BaseYaw = 0, BasePitch = 0;
+        float WrittenYaw = 0, WrittenPitch = 0;
+        bool bApplied = false;
+    } Look;
+
+    void UpdateBuildSensitivity(UObj* CameraManager)
+    {
+        if (!BuildToolClass || !EditToolClass)
+            return;
+        auto Controller = *(uint8_t**)((uint8_t*)CameraManager + 0x220);
+        if (!Controller)
+            return;
+        if (Controller != Look.Controller)
+            Look = {}, Look.Controller = Controller;
+
+        auto& YawScale = *(float*)(Controller + ControllerInputYawScale);
+        auto& PitchScale = *(float*)(Controller + ControllerInputPitchScale);
+        if (Look.bApplied && (YawScale != Look.WrittenYaw || PitchScale != Look.WrittenPitch))
+            Look.bApplied = false;
+        if (!Look.bApplied)
+            Look.BaseYaw = YawScale, Look.BasePitch = PitchScale;
+
+        float Percent = 100.f;
+        auto Pawn = *(uint8_t**)(Controller + ControllerAcknowledgedPawn);
+        auto Weapon = Pawn ? *(UObj**)(Pawn + PawnCurrentWeapon) : nullptr;
+        if (Weapon && IsA(Weapon, EditToolClass))
+            Percent = Tellurium::CustomSettings::Settings.EditSensitivity;
+        else if (Weapon && IsA(Weapon, BuildToolClass))
+            Percent = Tellurium::CustomSettings::Settings.BuildSensitivity;
+
+        if (Percent != 100.f)
+        {
+            YawScale = Look.BaseYaw * Percent / 100.f;
+            PitchScale = Look.BasePitch * Percent / 100.f;
+            Look.WrittenYaw = YawScale, Look.WrittenPitch = PitchScale;
+            Look.bApplied = true;
+        }
+        else if (Look.bApplied)
+        {
+            YawScale = Look.BaseYaw, PitchScale = Look.BasePitch;
+            Look.bApplied = false;
+        }
+    }
+
     float __fastcall GetFOVAngleHook(UObj* CameraManager)
     {
         GetFOVAngleFn Original = nullptr;
@@ -32,6 +85,8 @@ namespace
             Original = Patched[0].Original;
 
         float FOV = Original(CameraManager);
+        __try { UpdateBuildSensitivity(CameraManager); }
+        __except (EXCEPTION_EXECUTE_HANDLER) {}
         auto& S = Tellurium::CustomSettings::Settings;
         if (S.bCustomFOV && FOV > 1.f)
         {
@@ -76,6 +131,8 @@ namespace
         {
             __try
             {
+                if (!BuildToolClass) BuildToolClass = FindClass(L"FortWeap_BuildingTool");
+                if (!EditToolClass) EditToolClass = FindClass(L"FortWeap_EditingTool");
                 auto CameraManager = LocalCameraManager();
                 if (CameraManager && CameraManager->VTable)
                     PatchCameraManager(CameraManager);

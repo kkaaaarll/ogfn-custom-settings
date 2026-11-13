@@ -68,7 +68,7 @@ namespace
     struct FStringRange { FStr* Begin; FStr* End; };
     struct FSharedRef { void* Object; uint8_t* Controller; };
 
-    enum ESetting { CustomFOV, FOV, Crosshair, Style, Size, Thickness, Gap, Outline, Color, SettingCount };
+    enum ESetting { CustomFOV, FOV, Crosshair, Style, Size, Thickness, Gap, Outline, Color, BuildSens, EditSens, SettingCount };
 
     struct FColorPreset { const wchar_t* Name; float R, G, B; };
     const FColorPreset ColorPresets[] = {
@@ -117,6 +117,8 @@ namespace
         switch (Id)
         {
         case FOV: Value = Snap(S.FOV, 60, 120, 5); break;
+        case BuildSens: Value = Snap(S.BuildSensitivity, 10, 500, 5); break;
+        case EditSens: Value = Snap(S.EditSensitivity, 10, 500, 5); break;
         case Style: Value = (float)S.CrosshairStyle; break;
         case Size: Value = Snap(S.CrosshairSize, 2, 30, 2); break;
         case Thickness: Value = Snap(S.CrosshairThickness, 1, 6, 1); break;
@@ -137,6 +139,8 @@ namespace
         case Crosshair: S.bCrosshair = b; break;
         case Outline: S.bCrosshairOutline = b; break;
         case FOV: S.FOV = Snap(Value, 60, 120, 5); break;
+        case BuildSens: S.BuildSensitivity = Snap(Value, 10, 500, 5); break;
+        case EditSens: S.EditSensitivity = Snap(Value, 10, 500, 5); break;
         case Style: S.CrosshairStyle = (int)Snap(Value, 0, 3, 1); break;
         case Size: S.CrosshairSize = Snap(Value, 2, 30, 2); break;
         case Thickness: S.CrosshairThickness = Snap(Value, 1, 6, 1); break;
@@ -186,6 +190,7 @@ namespace
     {
         FillVTable<CustomFOV>(); FillVTable<FOV>(); FillVTable<Crosshair>(); FillVTable<Style>(); FillVTable<Size>();
         FillVTable<Thickness>(); FillVTable<Gap>(); FillVTable<Outline>(); FillVTable<Color>();
+        FillVTable<BuildSens>(); FillVTable<EditSens>();
     }
 
     FSharedRef MakeDataSource(int Id)
@@ -420,6 +425,19 @@ namespace
             L"Use your own field of view instead of the game's. Aiming down sights still zooms in.", false);
         AddNumber(Camera, FOV, L"RefractFOV", L"Field of View",
             L"How wide the camera sees when Custom FOV is on. The game's normal view is 80.", 60, 120, 5, 90);
+
+        auto Building = NewCollection(L"RefractBuildingCollection", L"Building");
+        At<void(*)(UObj*, UObj*)>(AddSettingRva)(Top, Building);
+        static wchar_t PercentText[99][8];
+        static const wchar_t* Percents[99];
+        for (int i = 0; i < 99; i++)
+            swprintf_s(PercentText[i], L"%d%%", 10 + i * 5), Percents[i] = PercentText[i];
+        AddNumber(Building, BuildSens, L"RefractBuildSensitivity", L"BUILDING SENSITIVITY",
+            L"Mouse look speed while in build mode, as a percentage of your normal sensitivity. 100% is no change.",
+            10, 500, 5, 100, Percents);
+        AddNumber(Building, EditSens, L"RefractEditSensitivity", L"EDITING SENSITIVITY",
+            L"Mouse look speed while editing a build, as a percentage of your normal sensitivity. 100% is no change.",
+            10, 500, 5, 100, Percents);
 
         auto Cross = NewCollection(L"RefractCrosshairCollection", L"Crosshair");
         At<void(*)(UObj*, UObj*)>(AddSettingRva)(Top, Cross);
