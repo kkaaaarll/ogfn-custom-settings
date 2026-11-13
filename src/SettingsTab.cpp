@@ -116,7 +116,7 @@ namespace
         float Value = 0;
         switch (Id)
         {
-        case FOV: Value = Snap(S.FOV, 60, 120, 5); break;
+        case FOV: Value = Snap(S.FOV, 60, 120, 1); break;
         case BuildSens: Value = Snap(S.BuildSensitivity, 10, 500, 5); break;
         case EditSens: Value = Snap(S.EditSensitivity, 10, 500, 5); break;
         case Style: Value = (float)S.CrosshairStyle; break;
@@ -128,9 +128,28 @@ namespace
         swprintf_s(Out, L"%f", (double)Value);
     }
 
+    volatile ULONGLONG SaveAfter = 0;
+
+    DWORD WINAPI SaveThread(LPVOID)
+    {
+        while (true)
+        {
+            Sleep(250);
+            ULONGLONG Due = SaveAfter;
+            if (Due && GetTickCount64() >= Due)
+            {
+                SaveAfter = 0;
+                Tellurium::CustomSettings::Save();
+            }
+        }
+        return 0;
+    }
+
     void SetValueFromString(int Id, const wchar_t* Text)
     {
         auto& S = Tellurium::CustomSettings::Settings;
+        wchar_t Before[32];
+        ValueString(Id, Before);
         bool b = Text && (Text[0] == L't' || Text[0] == L'T');
         float Value = Text ? (float)_wtof(Text) : 0.f;
         switch (Id)
@@ -138,7 +157,7 @@ namespace
         case CustomFOV: S.bCustomFOV = b; break;
         case Crosshair: S.bCrosshair = b; break;
         case Outline: S.bCrosshairOutline = b; break;
-        case FOV: S.FOV = Snap(Value, 60, 120, 5); break;
+        case FOV: S.FOV = Snap(Value, 60, 120, 1); break;
         case BuildSens: S.BuildSensitivity = Snap(Value, 10, 500, 5); break;
         case EditSens: S.EditSensitivity = Snap(Value, 10, 500, 5); break;
         case Style: S.CrosshairStyle = (int)Snap(Value, 0, 3, 1); break;
@@ -152,8 +171,12 @@ namespace
             break;
         }
         }
+        wchar_t After[32];
+        ValueString(Id, After);
+        if (wcscmp(Before, After) == 0)
+            return;
         InterlockedIncrement(&Tellurium::CustomSettings::SettingsVersion);
-        Tellurium::CustomSettings::Save();
+        SaveAfter = GetTickCount64() + 600;
     }
 
     void* DataSourceVTables[SettingCount][DataSourceVTableSize]{};
@@ -396,6 +419,86 @@ namespace
         At<void(*)(UObj*, UObj*)>(AddSettingRva)(Parent, Setting);
     }
 
+    constexpr uint64_t NewScalarRva = 0x17769F0;
+    constexpr uint64_t ScalarSetDefaultRva = 0x1776A90;
+    constexpr uint64_t ScalarSetDisplayFormatRva = 0x1776AE4;
+    constexpr uint64_t ScalarSetRangeAndStepRva = 0x1774A78;
+    constexpr uint64_t CopyFormatRva = 0xE389F0;
+    constexpr uint64_t GameScalarFormatRva = 0xB0FF0B0;
+
+    struct FDoubleRange { uint8_t LowerType; double Lower; uint8_t UpperType; double Upper; };
+
+    FText NumberTexts[201]{};
+    FText PercentTexts[99]{};
+
+    void MakeScalarTexts()
+    {
+        if (NumberTexts[0].Data)
+            return;
+        for (int i = 0; i <= 200; i++)
+        {
+            wchar_t Label[8], Key[32];
+            swprintf_s(Label, L"%d", i);
+            swprintf_s(Key, L"RefractNumber%d", i);
+            NumberTexts[i] = Text(_wcsdup(Label), _wcsdup(Key));
+        }
+        for (int i = 0; i < 99; i++)
+        {
+            wchar_t Label[8], Key[32];
+            swprintf_s(Label, L"%d%%", 10 + i * 5);
+            swprintf_s(Key, L"RefractPercent%d", 10 + i * 5);
+            PercentTexts[i] = Text(_wcsdup(Label), _wcsdup(Key));
+        }
+    }
+
+    FText* ShareText(FText* Out, const FText& From)
+    {
+        *Out = From;
+        if (Out->Controller)
+            InterlockedIncrement((volatile long*)((uint8_t*)Out->Controller + 8));
+        return Out;
+    }
+
+    FText* __fastcall FormatWholeNumber(FText* Out, void*, double* Source, double*)
+    {
+        int Value = (int)lround(Source ? *Source : 0.0);
+        Value = Value < 0 ? 0 : Value > 200 ? 200 : Value;
+        return ShareText(Out, NumberTexts[Value]);
+    }
+
+    FText* __fastcall FormatPercent(FText* Out, void*, double* Source, double*)
+    {
+        int Index = (int)lround(((Source ? *Source : 100.0) - 10.0) / 5.0);
+        Index = Index < 0 ? 0 : Index > 98 ? 98 : Index;
+        return ShareText(Out, PercentTexts[Index]);
+    }
+
+    bool AddScalar(UObj* Parent, int Id, const wchar_t* DevName, const wchar_t* DisplayName, const wchar_t* Description,
+        double Min, double Max, double Step, double Default, bool bPercent)
+    {
+        MakeScalarTexts();
+        Mark("creating slider", DevName);
+        auto Setting = At<UObj*(*)(UObj*)>(NewScalarRva)(*At<UObj**>(TransientPackageRva));
+        if (!Setting)
+            return false;
+        KeepAlive(Setting);
+        Name(Setting, DevName, DisplayName, Description);
+        Bind(Setting, Id);
+        Mark("setting the default of", DevName);
+        At<void(*)(UObj*, double)>(ScalarSetDefaultRva)(Setting, Default);
+        Mark("setting the format of", DevName);
+        alignas(16) uint8_t Format[0x40]{};
+        At<void(*)(void*, void*)>(CopyFormatRva)(Format, At<void*>(GameScalarFormatRva));
+        *(void**)Format = bPercent ? (void*)&FormatPercent : (void*)&FormatWholeNumber;
+        At<void(*)(UObj*, void*)>(ScalarSetDisplayFormatRva)(Setting, Format);
+        Mark("setting the range of", DevName);
+        FDoubleRange Range{ 1, Min, 1, Max };
+        At<void(*)(UObj*, FDoubleRange*, double)>(ScalarSetRangeAndStepRva)(Setting, &Range, Step);
+        Mark("adding and initializing", DevName);
+        At<void(*)(UObj*, UObj*)>(AddSettingRva)(Parent, Setting);
+        return true;
+    }
+
     UObj* FindRefractCollection(UObj* Registry)
     {
         FStr Dev{};
@@ -423,8 +526,9 @@ namespace
         At<void(*)(UObj*, UObj*)>(AddSettingRva)(Top, Camera);
         AddBool(Camera, CustomFOV, L"RefractCustomFOV", L"Custom FOV",
             L"Use your own field of view instead of the game's. Aiming down sights still zooms in.", false);
-        AddNumber(Camera, FOV, L"RefractFOV", L"Field of View",
-            L"How wide the camera sees when Custom FOV is on. The game's normal view is 80.", 60, 120, 5, 90);
+        static const wchar_t* FovDescription = L"How wide the camera sees when Custom FOV is on. The game's normal view is 80.";
+        if (!AddScalar(Camera, FOV, L"RefractFOV", L"Field of View", FovDescription, 60, 120, 1, 90, false))
+            AddNumber(Camera, FOV, L"RefractFOV", L"Field of View", FovDescription, 60, 120, 5, 90);
 
         auto Building = NewCollection(L"RefractBuildingCollection", L"Building");
         At<void(*)(UObj*, UObj*)>(AddSettingRva)(Top, Building);
@@ -432,12 +536,12 @@ namespace
         static const wchar_t* Percents[99];
         for (int i = 0; i < 99; i++)
             swprintf_s(PercentText[i], L"%d%%", 10 + i * 5), Percents[i] = PercentText[i];
-        AddNumber(Building, BuildSens, L"RefractBuildSensitivity", L"BUILDING SENSITIVITY",
-            L"Mouse look speed while in build mode, as a percentage of your normal sensitivity. 100% is no change.",
-            10, 500, 5, 100, Percents);
-        AddNumber(Building, EditSens, L"RefractEditSensitivity", L"EDITING SENSITIVITY",
-            L"Mouse look speed while editing a build, as a percentage of your normal sensitivity. 100% is no change.",
-            10, 500, 5, 100, Percents);
+        static const wchar_t* BuildDescription = L"Mouse look speed while in build mode, as a percentage of your normal sensitivity. 100% is no change.";
+        static const wchar_t* EditDescription = L"Mouse look speed while editing a build, as a percentage of your normal sensitivity. 100% is no change.";
+        if (!AddScalar(Building, BuildSens, L"RefractBuildSensitivity", L"BUILDING SENSITIVITY", BuildDescription, 10, 500, 5, 100, true))
+            AddNumber(Building, BuildSens, L"RefractBuildSensitivity", L"BUILDING SENSITIVITY", BuildDescription, 10, 500, 5, 100, Percents);
+        if (!AddScalar(Building, EditSens, L"RefractEditSensitivity", L"EDITING SENSITIVITY", EditDescription, 10, 500, 5, 100, true))
+            AddNumber(Building, EditSens, L"RefractEditSensitivity", L"EDITING SENSITIVITY", EditDescription, 10, 500, 5, 100, Percents);
 
         auto Cross = NewCollection(L"RefractCrosshairCollection", L"Crosshair");
         At<void(*)(UObj*, UObj*)>(AddSettingRva)(Top, Cross);
@@ -798,6 +902,7 @@ void Tellurium::SettingsTab::Start()
         return;
     Tellurium::CustomSettings::Load();
     FillVTables();
+    CreateThread(0, 0, SaveThread, 0, 0, 0);
 
     auto VTable = At<void**>(RegistryVTableRva);
     if (VTable[OnInitializeIndex] != (void*)(Base + 0x1773A64))

@@ -1,10 +1,10 @@
 # ogfn-custom-settings
 
-Adds your own tab to the Fortnite settings menu, with real settings rows that look and work like the game's own (arrows, option bars, the description panel on the right).
+Adds your own tab to the Fortnite settings menu, with real settings rows that look and work like the game's own (sliders, arrows, option bars, the description panel on the right).
 
 ![preview](preview.png)
 
-The example tab has a camera section (custom FOV), a building section (building and editing sensitivity, 10% to 500% of your normal look sensitivity, like current Fortnite's build and edit mode multipliers) and a crosshair section (style, size, thickness, gap, outline, color). Values save to `%LOCALAPPDATA%\Refract\client.ini` and load again next launch.
+The example tab has a camera section (custom FOV, with a 60 to 120 slider), a building section (building and editing sensitivity sliders, 10% to 500% of your normal look sensitivity, like current Fortnite's build and edit mode multipliers) and a crosshair section (style, size, thickness, gap, outline, color). Values save to `%LOCALAPPDATA%\Refract\client.ini` and load again next launch.
 
 ## 19.10 only
 

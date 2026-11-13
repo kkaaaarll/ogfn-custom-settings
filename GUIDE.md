@@ -36,7 +36,7 @@ The crosshair rows only store values. Drawing the crosshair is up to your own co
 
 - Name: search `Text(L"Refract", L"RefractTab_Name")` in `SettingsTab.cpp`
 - Icon: replace the bytes in `TabIcon.h` with your own PNG (128x128 works well). Any file to C array converter works
-- Rows: `BuildCollection` in `SettingsTab.cpp`. Use `AddBool` for on/off rows and `AddNumber` for everything else
+- Rows: `BuildCollection` in `SettingsTab.cpp`. Use `AddBool` for on/off rows, `AddScalar` for sliders and `AddNumber` for arrow lists
 
 ## If something goes wrong
 
