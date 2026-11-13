@@ -21,3 +21,7 @@ If you want it on another version you'll have to find every address and offset a
 - Custom FOV hooks `GetFOVAngle` on the local camera manager and scales the result, so ADS zoom still works
 
 It's written as a drop-in for Tellurium. See [GUIDE.md](GUIDE.md) for setup.
+
+## Credits
+
+Built on [Tellurium](https://github.com/plooshi/Tellurium) by Sarah (plooshware). Tellurium is the redirect / SSL bypass DLL this plugs into, all credit to her for it.
